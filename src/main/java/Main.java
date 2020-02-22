@@ -333,7 +333,7 @@ public final class Main {
       // new Scalar(66.0, 100.0, 30.0),       
       // new Scalar(120.0, 255.0, 255.0), inRangeHSV);
       new Scalar(66.0, 90.0, 60.0),       
-      new Scalar(100.0, 255.0, 255.0), inRangeHSV);
+      new Scalar(100.0, 255.0, 240.0), inRangeHSV);
       // Imgproc.erode(inRangeHSV, eroded, kernel);
       Imgproc.dilate(inRangeHSV, dilated, kernel);
       Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
@@ -345,13 +345,14 @@ public final class Main {
       for(int i = 0; i< contours.size(); i++){
           MatOfPoint m = contours.get(i);
           Rect r =  Imgproc.boundingRect(m);
-          if(r.area() > maxArea){
+          if(r.width > r.height){
+            if(r.area() > maxArea){
               maxArea = r.area();
               indexAtMax = i;
               centerX = ((r.x - mat.width() / 2) + 0.5 + (r.width/2));
               centerY = ((r.y - mat.height() / 2) + 0.5 + (r.height/2));
           }
-         
+        }
       }
       if(maxArea > -1){
         table.getEntry("Retro x").setNumber(centerX);
