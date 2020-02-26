@@ -249,6 +249,7 @@ public final class Main {
 
     Gson gson = new GsonBuilder().create();
 
+    
     camera.setConfigJson(gson.toJson(config.config));
     camera.setConnectionStrategy(VideoSource.ConnectionStrategy.kKeepOpen);
 
@@ -265,7 +266,9 @@ public final class Main {
   public static MjpegServer startSwitchedCamera(SwitchedCameraConfig config) {
     System.out.println("Starting switched camera '" + config.name + "' on " + config.key);
     MjpegServer server = CameraServer.getInstance().addSwitchedCamera(config.name);
-
+    server.setCompression(75);
+    server.setResolution(320,240);
+    
     NetworkTableInstance.getDefault()
         .getEntry(config.key)
         .addListener(event -> {
@@ -294,18 +297,13 @@ public final class Main {
    */
   public static class MyPipeline implements VisionPipeline {
     public int val;
-    MjpegServer myStream;
-    CvSource source1;
+   
     NetworkTableInstance nt;
     NetworkTable table;
 
-    public MyPipeline(){
-      myStream = new MjpegServer("processedVideo", 1676);
-      myStream.setCompression(95);
-      myStream.setDefaultCompression(95);
-      source1 = new CvSource("myImage", VideoMode.PixelFormat.kMJPEG,640,480,30);
-
-      myStream.setSource(source1);
+    CvSource source1;
+    public MyPipeline(CvSource source1){  
+      this.source1 = source1;
 
       nt = NetworkTableInstance.getDefault();
       table = nt.getTable("Retroreflective Tape Target");
@@ -313,64 +311,69 @@ public final class Main {
 
     @Override
     public void process(Mat mat) {
-      val += 1;
+      if(nt.getEntry("PumpkinSwitch").getDouble(0) == 0.0){
+        val += 1;
 
-      Point pt1 = new Point(mat.width() / 2 , mat.height());
-      Point pt2 = new Point(mat.width() / 2, 0);
+        Point pt1 = new Point(mat.width() / 2 , mat.height());
+        Point pt2 = new Point(mat.width() / 2, 0);
 
-      Mat hsv = new Mat();
-      Mat inRangeHSV = new Mat();
-      Mat dilated = new Mat();
+        Mat hsv = new Mat();
+        Mat inRangeHSV = new Mat();
+        Mat dilated = new Mat();
 
-      Size kernelSize = new Size(16,16);
-      Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, kernelSize);
-      List<MatOfPoint> contours = new ArrayList<>();
-      Mat hierarchy = new Mat();
+        Size kernelSize = new Size(16,16);
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, kernelSize);
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
 
 
-      Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_BGR2HSV);
-      Core.inRange(hsv, 
-      // new Scalar(66.0, 100.0, 30.0),       
-      // new Scalar(120.0, 255.0, 255.0), inRangeHSV);
-      new Scalar(66.0, 90.0, 60.0),       
-      new Scalar(100.0, 255.0, 240.0), inRangeHSV);
-      // Imgproc.erode(inRangeHSV, eroded, kernel);
-      Imgproc.dilate(inRangeHSV, dilated, kernel);
-      Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_BGR2HSV);
+        Core.inRange(hsv, 
+        // new Scalar(66.0, 100.0, 30.0),       
+        // new Scalar(120.0, 255.0, 255.0), inRangeHSV);
+        new Scalar(66.0, 90.0, 60.0),       
+        new Scalar(100.0, 255.0, 240.0), inRangeHSV);
+        // Imgproc.erode(inRangeHSV, eroded, kernel);
+        Imgproc.dilate(inRangeHSV, dilated, kernel);
+        Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
 
-      double maxArea = -1;
-      int indexAtMax = -1;
-      double centerX = -1;
-      double centerY = -1;
-      for(int i = 0; i< contours.size(); i++){
-          MatOfPoint m = contours.get(i);
-          Rect r =  Imgproc.boundingRect(m);
-          if(r.width > r.height){
-            if(r.area() > maxArea){
-              maxArea = r.area();
-              indexAtMax = i;
-              centerX = ((r.x - mat.width() / 2) + 0.5 + (r.width/2));
-              centerY = ((r.y - mat.height() / 2) + 0.5 + (r.height/2));
+        double maxArea = -1;
+        int indexAtMax = -1;
+        double centerX = -1;
+        double centerY = -1;
+        for(int i = 0; i< contours.size(); i++){
+            MatOfPoint m = contours.get(i);
+            Rect r =  Imgproc.boundingRect(m);
+            if(r.width > r.height){
+              if(r.area() > maxArea){
+                maxArea = r.area();
+                indexAtMax = i;
+                centerX = ((r.x - mat.width() / 2) + 0.5 + (r.width/2));
+                centerY = ((r.y - mat.height() / 2) + 0.5 + (r.height/2));
+            }
           }
         }
-      }
-      if(maxArea > -1){
-        table.getEntry("Retro x").setNumber(centerX);
-        table.getEntry("Retro y").setNumber(centerY);
-        table.getEntry("Retroreflective Target Found").setBoolean(true);
-        table.getEntry("X Angle").setNumber(pixelToAngle(mat.width(), 70.42, centerX));
-      }else{
-        table.getEntry("Retroreflective Target Found").setBoolean(false);
-      }
-      Imgproc.line(mat, pt1, pt2, new Scalar(0,0,255),5);
-      Imgproc.drawContours(mat, contours, indexAtMax, new Scalar(255,0,0), 5);
+        if(maxArea > -1){
+          table.getEntry("Retro x").setNumber(centerX);
+          table.getEntry("Retro y").setNumber(centerY);
+          table.getEntry("Retroreflective Target Found").setBoolean(true);
+          table.getEntry("X Angle").setNumber(pixelToAngle(mat.width(), 70.42, centerX));
+        }else{
+          table.getEntry("Retroreflective Target Found").setBoolean(false);
+        }
+        Imgproc.line(mat, pt1, pt2, new Scalar(0,0,255),5);
+        Imgproc.drawContours(mat, contours, indexAtMax, new Scalar(255,0,0), 5);
 
-      source1.putFrame(mat);
+        
+          source1.putFrame(mat);
+        
 
+        
+        hsv.release();
+        inRangeHSV.release();
+        dilated.release();
+    }
       mat.release();
-      hsv.release();
-      inRangeHSV.release();
-      dilated.release();
     }
 
     public double pixelToAngle(double camWidth, double camFOV, double xPosition){
@@ -389,6 +392,43 @@ public final class Main {
 
   }
 
+
+  public static class MyPipelineTwo implements VisionPipeline {
+    public int val;
+   
+    NetworkTableInstance nt;
+    NetworkTable table;
+
+    CvSource source1;
+    public MyPipelineTwo(CvSource source1){  
+      this.source1 = source1;
+
+      nt = NetworkTableInstance.getDefault();
+      table = nt.getTable("Retroreflective Tape Target");
+    }
+
+    @Override
+    public void process(Mat mat) {
+      if(nt.getEntry("PumpkinSwitch").getDouble(0) == 1.0){
+        source1.putFrame(mat);
+      }
+    }
+
+    public double pixelToAngle(double camWidth, double camFOV, double xPosition){
+      double f = (0.5 * camWidth) / Math.tan(0.5 * (camFOV * Math.PI / 180.0));
+      
+      double pixelX = xPosition;
+      
+      double dot = (f * f);
+      double alpha = Math.acos(dot / (f * (Math.sqrt(pixelX * pixelX + f * f))));
+
+      if(xPosition < 0)
+        alpha *= -1;
+      
+      return (alpha * 180.0/Math.PI);
+    }
+
+  }
   /**
    * Main.
    */
@@ -421,11 +461,21 @@ public final class Main {
     for (SwitchedCameraConfig config : switchedCameraConfigs) {
       startSwitchedCamera(config);
     }
+    MjpegServer myStream;
+    CvSource source1;
+
+    myStream = new MjpegServer("processedVideo", 1676);
+    myStream.setCompression(75);
+    myStream.setDefaultCompression(75);
+    myStream.setResolution(320, 240);
+    source1 = new CvSource("myImage", VideoMode.PixelFormat.kMJPEG,640,480,30);
+    myStream.setSource(source1);
+
 
     // start image processing on camera 0 if present
     if (cameras.size() >= 1) {
       VisionThread visionThread = new VisionThread(cameras.get(0),
-              new MyPipeline(), pipeline -> {
+              new MyPipeline(source1), pipeline -> {
         // do something with pipeline results
       });
       /* something like this for GRIP:
@@ -435,6 +485,20 @@ public final class Main {
       });
        */
       visionThread.start();
+    }
+
+    if (cameras.size() >= 2) {
+      VisionThread visionThread2 = new VisionThread(cameras.get(1),
+              new MyPipelineTwo(source1), pipeline -> {
+        // do something with pipeline results
+      });
+      /* something like this for GRIP:
+      VisionThread visionThread = new VisionThread(cameras.get(0),
+              new GripPipeline(), pipeline -> {
+        ...
+      });
+       */
+      visionThread2.start();
     }
 
     // loop forever
