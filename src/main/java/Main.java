@@ -464,7 +464,7 @@ public final class Main {
     MjpegServer myStream;
     CvSource source1;
 
-    myStream = new MjpegServer("processedVideo", 1676);
+    myStream = new MjpegServer("processedVideo", 1184);
     myStream.setCompression(75);
     myStream.setDefaultCompression(75);
     myStream.setResolution(320, 240);

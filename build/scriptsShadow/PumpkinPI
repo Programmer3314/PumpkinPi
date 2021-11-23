@@ -2,7 +2,7 @@
 
 ##############################################################################
 ##
-##  PumpkinPI start up script for UN*X
+##  PumpkinPi start up script for UN*X
 ##
 ##############################################################################
 
@@ -24,7 +24,7 @@ cd "`dirname \"$PRG\"`/.." >/dev/null
 APP_HOME="`pwd -P`"
 cd "$SAVED" >/dev/null
 
-APP_NAME="PumpkinPI"
+APP_NAME="PumpkinPi"
 APP_BASE_NAME=`basename "$0"`
 
 # Add default JVM options here. You can also use JAVA_OPTS and PUMPKIN_PI_OPTS to pass JVM options to this script.
@@ -64,7 +64,7 @@ case "`uname`" in
     ;;
 esac
 
-CLASSPATH=$APP_HOME/lib/PumpkinPI-all.jar
+CLASSPATH=$APP_HOME/lib/PumpkinPi-all.jar
 
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
